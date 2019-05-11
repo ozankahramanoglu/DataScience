@@ -1,0 +1,447 @@
+---
+title: "CENG 4515 Data Science and Analytics Project"
+author: "Ozan Kahramanoğlu"
+output: pdf_document
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+Sys.setenv(PATH = paste(Sys.getenv("PATH"), "C:\\Users\\ozank\\AppData\\Local\\Programs\\MiKTeX 2.9\\miktex\\bin\\x64", sep=.Platform$path.sep))
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+<h2>Introduction<h2>
+
+<h2>HYPOTHESIS<h2>
+<p>
+The dataset, provided by Peerindex, comprises a standard, 
+pair-wise preference learning task. Each datapoint describes 
+two individuals. Pre-computed, standardised features based on
+twitter activity (such as volume of interactions,
+number of followers, etc) is provided for each individual.
+
+This project help us to understand which parameters are important
+to be a influencer in Twitter
+</p>
+
+<p>
+This is the report of CENG 4515 Data Science and Analytics project
+</p>
+
+<p>
+This is the report consist of 4 main part
+<ul>Introduction</ul>
+<ul>Body</ul>
+<ul>Conclusion</ul>
+<ul>Appendix</ul>
+
+<h2>Body<h2>
+
+</p>
+<h2>WORKING DIRECTORY<h2>
+<p>
+First we should set our working directory 
+Change this directory according to your computer and OS
+</p>
+```{r}
+#setwd("C:/Users/ozank/Desktop/DataScienceProject/")
+```
+
+
+```{r}
+# if you dont have necessary packages you should run next block of code (A.K.A dependencies) 
+
+#install.packages("caret" , dependencies = TRUE)
+#install.packages("dplyr", dependencies = TRUE)
+#install.packages("ggplot2", dependencies = TRUE)
+#install.packages("skimr", dependencies = TRUE)
+#install.packages("kernlab", dependencies = TRUE)
+#install.packages("corrplot", dependencies = TRUE)
+```
+
+<h2>NECESSARY LIBRARIES<h2>
+
+Then we should include our necessary packages
+
+
+
+```{r}
+library(caret)
+library(dplyr)
+library(ggplot2)
+library(skimr)
+library(kernlab)
+library(corrplot)
+```
+  
+<h2>IMPORTING DATA<h2>  
+
+<p>Data is seperated by the provider to three different CSV's</p>
+```{r}
+data <- read.csv("train.csv")
+testdata <- read.csv("test.csv")
+sample_data <- read.csv("sample_predictions.csv")
+```
+
+<p>
+This data used for competitons so "sample_predictions.csv"
+file some kind of a test file we should do some modifications
+to our test data and train data have to same number of colums
+The index number is the same for sample data and test data
+So all we need to do is adding to second column of sample data
+to the end of test data
+</p>
+
+
+```{r}
+
+testdata$Choice <- sample_data[,2]
+
+# Now we dont need sample data.
+
+object.size(testdata) # Reports the memory size allocated to the object
+# Test data allocate 908680 bytes
+object.size(data) # Reports the memory size allocated to the object
+# Data allocate 817344 bytes
+object.size(sample_data) # Reports the memory size allocated to the object
+# Sample data allocate 72200 bytes
+
+# So we can free 72200 bytes from our memeory
+
+rm(sample_data)
+
+```
+  
+
+<p>
+Now we dont need sample data.
+So we can free 72200 bytes from our memeory
+</p>
+
+<h2>DATA EXPLORING</h2>
+
+```{r}
+head(data)
+```
+
+<p>
+We can see that Choice column has binary output
+All the other columns has numerical output
+</p>
+
+<p>
+If there is some NA's needs to be handled below
+code block will be handle it but there isn't any
+NA in the data.
+</p>
+
+```{r}
+if (anyNA(data)) {
+  anyNA(data)
+  print(" There some NA's need to be omitted ")
+  data <- na.omit(data)
+} else{
+  print("No NA's found to be omitted")
+}
+```
+
+
+<p>
+We can take look to feature graph
+</p>
+
+```{r}
+featurePlot(x = data[,2:23], 
+            y = as.factor(data$Choice), 
+            plot = "density",
+            strip=strip.custom(par.strip.text=list(cex=.5)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+```
+
+<p>
+It is hard to say anything about the data with this 
+feature plot because there is no distict graph 
+</p>
+
+<p>
+We can skim the data for more information about dataset
+</p>
+
+```{r}
+skim(data)
+```
+
+<p>
+Also we can take look to correlation plot
+</p>
+
+```{r}
+corrplot(
+  cor(data),
+  method = "color",
+  outline = T,
+  order = "hclust",
+  cl.pos = "b",
+  tl.col = "indianred4",
+  tl.cex = 0.5,
+  cl.cex = 0.5,
+  addCoef.col = "white",
+  number.digits = 2,
+  number.cex = 0.3,
+  col = colorRampPalette(c("darkred", "white", "midnightblue"))(100)
+)
+
+```
+
+<h2>LOGISTIC REGRESSION</h2>
+
+<p>
+In another case data should be splited to two parts
+as training and testing part but data provider already
+splited and we do the necerrasy tweaks in the data import
+part
+</p>
+
+<p>
+According to binomial output we should you generalized linear
+model to generating a binomial model
+</p>
+
+```{r}
+data.glm <- glm(data$Choice ~. ,family = binomial(), data = data)
+summary(data.glm)
+```
+
+<p>
+We can see here our residuals are acceptable
+</p>
+
+<p>
+We can take a better look to ther residuals in this plot
+</p>
+
+```{r}
+a <- plot(
+  predict(data.glm),
+  residuals(data.glm),
+  col = c("blue", "red"),
+  lines(lowess(predict(data.glm), residuals(data.glm)), col = "red"))
+  abline(h = 0, lty = 2, col = "grey")
+
+```
+
+<h2>MACHINE LEARNING MODELS</h2>
+
+<p>
+The data should be divided into two part with this block of code
+but our data already divided and necessary tweaks already handled
+in the data import part
+Otherwise this code will be uncommented
+</p>
+
+```{r}
+# set.seed(100)
+# trainRowNumbers <- createDataPartition(data$Choice, p=0.7, list=FALSE)
+# 
+# data <- data[trainRowNumbers,]
+# testdata <- data[-trainRowNumbers,]
+```
+
+<p>
+Now we will create a control method to use in traning our models
+</p>
+
+
+```{r}
+fitControl <- trainControl(
+  method = 'repeatedcv',                   # k-fold cross validation
+  number = 10,                      # number of folds
+  repeats = 2
+) 
+```
+
+<h2>KNN model</h2>
+<p>
+Now we will train KNN model
+</p>
+
+```{r}
+KNN_train <-
+  train(
+    y = as.factor(data$Choice),
+    x = data[, 2:23] ,
+    preProcess = c("center", "scale"),
+    trControl = fitControl ,
+    method = "knn"
+  )
+```
+
+<p>
+We can take look at variable importance with this graph
+</p>
+
+```{r}
+varimp_KNN <- varImp(KNN_train)
+plot(varimp_KNN, main="Variable Importance with varimp_KNN")
+```
+
+<p>
+Now we can test our KNN model and see the results 
+</p>
+
+```{r}
+testDataKNN <- predict(KNN_train, testdata)  
+confKNN <- confusionMatrix(reference = as.factor(ifelse(testdata$Choice> 0.5,1,0)), data = testDataKNN, mode='everything', positive='1')
+confKNN
+fourfoldplot(confKNN$table)
+```
+
+<p>
+In adittion to this we can take look to density
+plot of accuracy of this model
+</p>
+
+```{r}
+densityplot(KNN_train$results$Accuracy)
+```
+
+<h2>Random Forest (RF) model</h2>
+
+<p>
+Now we will train Random Forest (RF) model
+</p>
+
+```{r}
+RF_train <-
+  train(
+    y = as.factor(data$Choice),
+    x = data[, 2:23] ,
+    preProcess = c("center", "scale"),
+    trControl = fitControl ,
+    method = "rf"
+  )
+```
+
+<p>
+We can take look at variable importance with this graph
+</p>
+
+```{r}
+varimp_RF <- varImp(RF_train)
+plot(varimp_RF, main="Variable Importance with RF_train")
+```
+
+<p>
+Now we can test our RF model and see the results 
+</p>
+
+```{r}
+testDataRF <- predict(RF_train, testdata)  
+confRF <- confusionMatrix(reference = as.factor(ifelse(testdata$Choice> 0.5,1,0)), data = testDataRF, mode='everything', positive='1')
+confKNN
+fourfoldplot(confRF$table)
+```
+
+<p>
+In adittion to this we can take look to density
+plot of accuracy of this model
+</p>
+
+```{r}
+densityplot(RF_train$results$Accuracy)
+```
+
+<h2>Radial Support Vector Machine (svmRadial) model</h2>
+
+<p>
+Now we will train Radial Support Vector Machine (svmRadial) model
+</p>
+
+```{r}
+sigDist <- sigest(data$Choice ~ ., data = data, frac = 1)
+svmTuneGrid <- data.frame(.sigma = sigDist[1])
+
+SVM_train <-
+  train(
+    y = as.factor(data[,1]),   
+    x = data[, 2:23],
+    preProcess = c("center", "scale"),
+    method = "svmRadial" ,
+    trControl = fitControl 
+  )
+```
+
+<p>
+We can take look at variable importance with this graph
+</p>
+
+```{r}
+varimp_SVM <- varImp(SVM_train)
+plot(varimp_SVM, main="Variable Importance with SVM_train")
+```
+
+<p>
+Now we can test our SVM model and see the results 
+</p>
+
+```{r}
+testDataSVM <- predict(SVM_train)  
+confSVM <- confusionMatrix(reference = unlist(as.factor(ifelse(testdata$Choice>= 0.5,'1','0')))[1:5500] , data = testDataSVM, mode='everything', positive='1', dnn = c("Prediction", "Reference"))
+confSVM
+fourfoldplot(confSVM$table)
+```
+
+<p>
+In adittion to this we can take look to density
+plot of accuracy of this model
+</p>
+
+```{r}
+densityplot(SVM_train$results$Accuracy)
+```
+
+<h2>Conclusion<h2>
+
+<p>
+Lets look at the boxplot of models' accuracy 
+</p>
+
+```{r}
+par(mfrow=c(1,3)) 
+graphics::boxplot(SVM_train$results$Accuracy)
+graphics::boxplot(RF_train$results$Accuracy)
+graphics::boxplot(KNN_train$results$Accuracy)
+
+```
+
+<p>
+With a little diffrence the best model is Random Forest
+</p>
+
+<p>
+In conclusion in this project we can see what to do to be 
+a influencer in twitter.
+We can take a look to  variable importance plots to how to 
+be a better influencer
+Also we can use the random forest model to predict can a 
+Twitter account will be a influencer account
+</p>
+
+
+<h1>Appendix<h1>
+
+<h2>DATA SOURCE<h2>
+<p>
+Every piece of data that are used in this project can be found on the link which is below
+
+Data url https://www.kaggle.com/c/predict-who-is-more-influential-in-a-social-network/data
+</p>
+
+
+
